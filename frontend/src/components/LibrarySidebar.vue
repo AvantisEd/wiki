@@ -159,14 +159,17 @@ const { spaces, orderedSpaces, restrictedSpaces, isPinned, togglePin } =
 		publishedOnly: computed(() => !userStore.isWikiManager),
 	});
 
-// Merged, rejected and archived requests are done, so they do not belong in
-// the sidebar count. `get_count` runs through the same permission query as the
-// list, so this is the user's own count, not the wiki's.
+// AVANTIS: only requests waiting on someone count — submitted (In Review) or
+// approved but not yet merged. Upstream counted every unfinished request, Drafts
+// included, and the editor opens a Draft for anyone who merely opens a space,
+// so the badge filled with empty drafts. With writers publishing directly, a
+// number here means something got stuck. `get_count` runs through the same
+// permission query as the list, so this is the user's own count, not the wiki's.
 const openChangeRequests = createResource({
 	url: 'frappe.client.get_count',
 	params: {
 		doctype: 'Wiki Change Request',
-		filters: { status: ['not in', ['Merged', 'Rejected', 'Archived']] },
+		filters: { status: ['in', ['In Review', 'Approved']] },
 	},
 	auto: true,
 });
