@@ -125,7 +125,11 @@ has_permission = {
 # Hook on document methods and events
 
 doc_events = {
-	"User": {"after_insert": "wiki.utils.add_wiki_user_role"},
+	# AVANTIS: no `"User": {"after_insert": "wiki.utils.add_wiki_user_role"}`. Upstream gives
+	# every new User `Wiki User`; on our shared site that includes school accounts from the
+	# KB's open sign-up, and since the role has desk access the next save of such a User
+	# makes it a System User. The wiki is staff-only: staff get their wiki roles from the
+	# avantis role profiles (`Wiki User` + `Wiki Approver`), so nothing is lost here.
 	"Wiki Document": {
 		"on_update": "wiki.frappe_wiki.doctype.wiki_document.wiki_document.on_wiki_document_update",
 		"on_trash": "wiki.frappe_wiki.doctype.wiki_document.wiki_document.on_wiki_document_trash",
