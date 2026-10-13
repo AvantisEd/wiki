@@ -8,12 +8,12 @@
 		:variant="variant"
 		:theme="theme"
 		:size="size"
-		:loading="crStore.isSubmitting"
+		:loading="crStore.isSubmitting || crStore.isMerging"
 		:disabled="submitDisabled"
 		:title="submitButtonTitle"
 		@click="showConfirmDialog = true"
 	>
-		{{ __('Submit for review') }}
+		{{ actionLabel }}
 	</Button>
 
 	<!-- Dialog's own title/message/icon/actions, not hand-rolled slots: the
@@ -23,9 +23,9 @@
 	     onto three lines. -->
 	<Dialog
 		v-model:open="showConfirmDialog"
-		:title="__('Submit for review')"
+		:title="actionLabel"
 		:message="confirmMessage"
-		icon="lucide-git-branch"
+		:icon="publishes ? 'lucide-upload' : 'lucide-git-branch'"
 		theme="blue"
 		:actions="confirmActions"
 	/>
@@ -63,12 +63,20 @@ const crActions = useChangeRequestActions();
 
 const showConfirmDialog = ref(false);
 
+// AVANTIS: a user who can write the space publishes directly (submit, approve
+// and merge in one step); only Read-tier contributors submit for review.
+const publishes = computed(() => spaceStore.canWriteSpace);
+const actionLabel = computed(() =>
+	publishes.value ? __('Publish') : __('Submit for review'),
+);
+
 // A submitted or merging change request has nothing left to submit, and a
 // synced space never opens one at all.
 const visible = computed(() => {
 	if (spaceStore.isGitSynced) return false;
 	if (!crStore.isChangeRequestMode) return false;
 	if (crStore.finalizing) return false;
+	if (publishes.value && spaceStore.isTreeReordering) return false;
 	// Autosave takes ten seconds to turn typing into a change row. Counting an
 	// unsaved buffer as submittable work keeps the button from disappearing in
 	// that window — there is no Save button left to fill it.
@@ -109,12 +117,13 @@ const submitButtonTitle = computed(() => {
 // The count is the whole point of the confirmation: what is about to leave
 // your hands. Phrased as the consequence rather than "are you sure", which
 // asks the user to re-derive it.
-const confirmMessage = computed(() =>
-	__('{0} pending {1} will be sent for review.', [
-		crStore.changeCount,
-		crStore.changeCount === 1 ? __('change') : __('changes'),
-	]),
-);
+const confirmMessage = computed(() => {
+	const count = crStore.changeCount;
+	const noun = count === 1 ? __('change') : __('changes');
+	return publishes.value
+		? __('{0} pending {1} will go live.', [count, noun])
+		: __('{0} pending {1} will be sent for review.', [count, noun]);
+});
 
 const confirmActions = computed(() => [
 	{
@@ -123,15 +132,16 @@ const confirmActions = computed(() => [
 		onClick: ({ close }) => close(),
 	},
 	{
-		label: __('Submit'),
+		label: publishes.value ? __('Publish') : __('Submit'),
 		variant: 'solid',
-		loading: crStore.isSubmitting,
+		loading: crStore.isSubmitting || crStore.isMerging,
 		onClick: ({ close }) => confirmSubmit(close),
 	},
 ]);
 
 function confirmSubmit(closeDialog) {
 	closeDialog();
-	crActions.submitForReview();
+	if (publishes.value) crActions.mergeChangeRequest();
+	else crActions.submitForReview();
 }
 </script>

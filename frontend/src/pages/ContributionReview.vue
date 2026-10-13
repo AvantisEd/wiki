@@ -48,13 +48,16 @@
 					>
 						{{ __('Merge') }}
 					</Button>
+					<!-- AVANTIS: the primary action approves AND merges. Plain Approve
+					     (the two-person path) is in the menu; as the primary it left
+					     self-approved CRs parked at Approved, never published. -->
 					<Button
 						v-else
 						variant="solid"
-						:loading="approveResource.loading"
-						@click="handleApprove"
+						:loading="approveResource.loading || mergeResource.loading"
+						@click="handleApproveAndMerge()"
 					>
-						{{ __('Approve') }}
+						{{ __('Publish') }}
 					</Button>
 
 					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions">
@@ -316,29 +319,6 @@
 			</div>
 		</div>
 
-		<Dialog v-model:open="showApproveMergeDialog" size="md">
-			<template #title>
-				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Approve & Merge') }}</h3>
-			</template>
-			<template #default>
-				<p class="text-ink-gray-7">
-					{{ __('This will approve the change request and immediately merge it into the live wiki. This cannot be undone. Are you sure?') }}
-				</p>
-			</template>
-			<template #actions="{ close }">
-				<div class="flex justify-end gap-2">
-					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button
-						variant="solid"
-						:loading="approveResource.loading || mergeResource.loading"
-						@click="handleApproveAndMerge(close)"
-					>
-						{{ __('Approve & Merge') }}
-					</Button>
-				</div>
-			</template>
-		</Dialog>
-
 		<Dialog v-model:open="showRequestChangesDialog" size="md">
 			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Request Changes') }}</h3>
@@ -454,7 +434,6 @@ const props = defineProps({
 	},
 });
 
-const showApproveMergeDialog = ref(false);
 const showRequestChangesDialog = ref(false);
 const requestChangesComment = ref('');
 const showRejectDialog = ref(false);
@@ -595,16 +574,13 @@ const reviewMenuOptions = computed(() => {
 	if (hasConflicts.value) return [];
 	const options = [];
 	const status = changeRequest.doc?.status;
-	// The header primary button is Approve-only (the two-person path: approve now,
-	// merge later via the Merge button). The combined self-serve Approve & Merge
-	// lives here in the menu for reviewers who want to publish in one step.
+	// AVANTIS: the header primary button publishes (approve + merge); approving
+	// without merging, for someone else to merge later, is the menu option.
 	if (status === 'In Review') {
 		options.push({
-			label: __('Approve & Merge'),
+			label: __('Approve only'),
 			icon: 'lucide-check-circle',
-			onClick: () => {
-				showApproveMergeDialog.value = true;
-			},
+			onClick: handleApprove,
 		});
 	}
 	if (['In Review', 'Approved'].includes(status)) {

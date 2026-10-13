@@ -272,7 +272,6 @@ import { useChangeTypeDisplay } from '../composables/useChangeTypeDisplay';
 import { useChangeRequestStore } from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
-import { useUserStore } from '../stores/user';
 import SyncStateAlert from './SyncStateAlert.vue';
 
 defineProps({
@@ -291,7 +290,6 @@ const {
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
-const userStore = useUserStore();
 const crActions = useChangeRequestActions();
 
 // `owner/repo` — only the repo half survives the sidebar's width.
@@ -373,8 +371,10 @@ watch(
 
 const showChangesDialog = ref(false);
 
+// AVANTIS: upstream showed Merge to Wiki Managers only, but the server lets anyone
+// with Write on the space merge (`_can_merge` = `can_write_space`).
 const canShowMerge = computed(
-	() => userStore.isWikiManager && crStore.changeCount > 0,
+	() => spaceStore.canWriteSpace && crStore.changeCount > 0,
 );
 
 const mergeButtonTitle = computed(() => {

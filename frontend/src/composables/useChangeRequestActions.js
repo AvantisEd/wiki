@@ -42,21 +42,26 @@ export function useChangeRequestActions() {
 		return null;
 	}
 
-	async function submitForReview() {
+	// Nothing offers a Save button any more, so an unsaved buffer is not the
+	// user's problem to solve before submitting or publishing: drain it here,
+	// then judge the blockers that a flush cannot clear (conflicts, failed
+	// mutations). Returns false when the flush failed (already toasted).
+	async function flushUnsaved() {
 		requestEditorFlush();
-		// Nothing offers a Save button any more, so an unsaved buffer is not the
-		// user's problem to solve before submitting: drain it here, then judge
-		// the blockers that a flush cannot clear (conflicts, failed mutations).
-		if (draftStore.finalizationBlocker === 'unsaved') {
-			const failures = await draftStore.flushDirtyPages();
-			if (failures.length) {
-				const error = failures[0];
-				toast.error(
-					error?.messages?.[0] || error?.message || __('Error saving draft'),
-				);
-				return;
-			}
+		if (draftStore.finalizationBlocker !== 'unsaved') return true;
+		const failures = await draftStore.flushDirtyPages();
+		if (failures.length) {
+			const error = failures[0];
+			toast.error(
+				error?.messages?.[0] || error?.message || __('Error saving draft'),
+			);
+			return false;
 		}
+		return true;
+	}
+
+	async function submitForReview() {
+		if (!(await flushUnsaved())) return;
 		const blockerMessage = finalizationError(__('submitting'));
 		if (blockerMessage) {
 			toast.error(blockerMessage);
@@ -110,7 +115,8 @@ export function useChangeRequestActions() {
 	}
 
 	async function mergeChangeRequest() {
-		requestEditorFlush();
+		// AVANTIS: flush like submit does, so Publish straight after typing works.
+		if (!(await flushUnsaved())) return;
 		if (spaceStore.isTreeReordering) {
 			toast.error(__('Please wait for reordering to finish before merging'));
 			return;
@@ -128,7 +134,7 @@ export function useChangeRequestActions() {
 		crStore.finalizing = 'merging';
 		try {
 			await crStore.approveAndMergeChangeRequest();
-			toast.success(__('Change request merged'));
+			toast.success(__('Published'));
 			crStore.currentChangeRequest = null;
 			crStore.clearChanges();
 			// The CR's drafts are now merged into the published doc — clear them so a
