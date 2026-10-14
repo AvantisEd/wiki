@@ -83,16 +83,20 @@ def fingerprint_js_url() -> str:
 
 
 def check_app_permission():
-	"""Check if user has permission to access the app (for showing the app on app screen)"""
+	"""Whether the Wiki tile appears on the Apps screen.
+
+	Shown to anyone who can read at least one wiki space, which is who the wiki
+	is for. Upstream shows it to Wiki Managers only, so a staff member with
+	Wiki Approver (the role that opens our spaces) could use the wiki but never
+	saw the tile.
+	"""
+
+	from wiki.permissions import can_read_space
 
 	if frappe.session.user == "Administrator":
 		return True
 
-	roles = frappe.get_roles()
-	if "Wiki Manager" in roles:
-		return True
-
-	return False
+	return any(can_read_space(space) for space in frappe.get_all("Wiki Space", pluck="name"))
 
 
 def add_wiki_user_role(doc, event=None):
