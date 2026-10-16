@@ -73,7 +73,7 @@
 							colspan="3"
 							class="px-3 py-6 text-center text-xs text-ink-gray-5"
 						>
-							{{ __('No roles configured (open to all logged-in users).') }}
+							{{ __('No roles set. Add at least one before saving.') }}
 						</td>
 					</tr>
 				</tbody>
@@ -82,7 +82,7 @@
 
 		<!-- Helper message, below the table -->
 		<p class="text-xs text-ink-gray-5">
-			{{ __('Readable by all logged-in users if no roles are set. Add the Guest role for public/anonymous access.') }}
+			{{ __('The wiki is for Avantis staff only. Wiki Approver gives every staff member read and write access; Guest and All cannot be added.') }}
 		</p>
 		<p v-if="!canManageAccess" class="text-xs text-ink-gray-5">
 			{{ __('Only space admins can change access control.') }}
@@ -227,7 +227,11 @@ const isDirty = computed(
 watch(isDirty, (dirty) => emit('update:dirty', dirty), { immediate: true });
 
 const ROLE_PAGE_LENGTH = 50;
-const BASE_ROLE_FILTERS = [['disabled', '=', 0]];
+// AVANTIS: Guest and All would make the space public; the server refuses them
+const BASE_ROLE_FILTERS = [
+	['disabled', '=', 0],
+	['name', 'not in', ['Guest', 'All']],
+];
 
 const allRoles = createListResource({
 	doctype: 'Role',

@@ -42,7 +42,7 @@
 					:modelValue="newSpace.route"
 					@update:modelValue="handleRouteInput"
 					:placeholder="__('my-wiki-space')"
-					:description="__('The URL path for this wiki space (e.g., /my-wiki-space)')"
+					:description="__('The URL path for this wiki space, under /wiki (e.g., my-wiki-space becomes /wiki/my-wiki-space)')"
 				/>
 
 				<FormControl
@@ -567,10 +567,9 @@ const handleCreateSpace = async () => {
 		...identity,
 		space_name: newSpace.space_name,
 		route: newSpace.route,
-		// New spaces are published by default, so start them as public read.
-		// Guest covers everyone (anonymous + logged-in); admins can refine this
-		// in Space Settings → Permissions.
-		roles: [{ role: 'Guest', permission_level: 'Read' }],
+		// AVANTIS: the wiki is staff-only, so a new space starts with every staff
+		// member as an editor (avantis/wiki_policy.py enforces it server-side).
+		roles: [{ role: 'Wiki Approver', permission_level: 'Write' }],
 	};
 
 	if (newSpace.git_synced) {
