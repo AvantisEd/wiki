@@ -968,6 +968,39 @@ class TestWikiChangeRequest(FrappeTestCase):
 		_approve_and_merge(cr.name)
 		frappe.set_user("Administrator")
 
+	def test_space_writer_merge_adds_moves_and_deletes_pages(self):
+		"""A space writer without Wiki Document doctype rights can merge structural changes.
+
+		Merging is gated on space Write; the live-tree writes it then makes must not
+		also demand Create/Write/Delete on Wiki Document, which only managers hold.
+		"""
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		mover = create_test_wiki_document(space.root_group, title="Mover")
+		doomed = create_test_wiki_document(space.root_group, title="Doomed")
+		cr = create_change_request(space.name, "CR approver structural")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+		mover_key = frappe.get_value("Wiki Document", mover.name, "doc_key")
+		doomed_key = frappe.get_value("Wiki Document", doomed.name, "doc_key")
+		new_key = create_cr_page(cr.name, parent_key=root_key, title="Brand New", content="Hello")
+		move_cr_page(cr.name, mover_key, group_key)
+		delete_cr_page(cr.name, doomed_key)
+
+		approver = create_user("merge-approver@example.com", "Wiki User", "Wiki Approver")
+		self.assertFalse(frappe.has_permission("Wiki Document", "create", user=approver.name))
+		frappe.set_user(approver.name)
+		try:
+			_approve_and_merge(cr.name)
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Merged")
+		self.assertEqual(frappe.get_value("Wiki Document", {"doc_key": new_key}, "title"), "Brand New")
+		self.assertEqual(frappe.get_value("Wiki Document", mover.name, "parent_wiki_document"), group.name)
+		self.assertFalse(frappe.db.exists("Wiki Document", doomed.name))
+
 	def test_get_cr_tree_returns_children(self):
 		space = create_test_wiki_space()
 		page1 = create_test_wiki_document(space.root_group, title="Page A")

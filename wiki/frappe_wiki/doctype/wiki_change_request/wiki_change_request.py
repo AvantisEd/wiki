@@ -1944,7 +1944,7 @@ def _delete_wiki_documents(doc_keys: Iterable[str], key_to_name: dict[str, str],
 			delete_docs.append((lft, doc_key, doc_name))
 	delete_docs.sort(key=lambda x: x[0], reverse=True)
 	for _lft, doc_key, doc_name in delete_docs:
-		frappe.delete_doc("Wiki Document", doc_name, force=True)
+		frappe.delete_doc("Wiki Document", doc_name, force=True, ignore_permissions=True)
 		del key_to_name[doc_key]
 
 
@@ -2046,6 +2046,10 @@ def _apply_merge_changes_only(
 	- Deletes removed docs
 	- Uses frappe.db.set_value for content-only changes (skips validation)
 	- Does full doc.save() only for structural changes and additions
+
+	Live-tree writes skip doctype permissions: the caller has already gated the
+	merge on space Write (`_can_merge`), and space writers who are not Wiki
+	Managers hold no Create/Write/Delete on Wiki Document.
 	"""
 	new_items = get_revision_item_map(merge_revision.name)
 	changed_keys = _find_changed_keys(prev_items, new_items)
@@ -2167,10 +2171,10 @@ def _apply_merge_changes_only(
 			doc.content = blob_contents.get(content_blob, "") if content_blob else ""
 
 			if doc.is_new():
-				doc.insert()
+				doc.insert(ignore_permissions=True)
 				key_to_name[doc_key] = doc.name
 			else:
-				doc.save()
+				doc.save(ignore_permissions=True)
 
 	# Delete AFTER saves — children must be reparented before parents are deleted
 	_delete_wiki_documents(deleted_keys, key_to_name, root_doc_key)
@@ -2605,10 +2609,10 @@ def _apply_merge_revision(space: Document, revision: Document) -> None:
 			doc.content = content
 
 		if doc.is_new():
-			doc.insert()
+			doc.insert(ignore_permissions=True)
 			key_to_name[doc_key] = doc.name
 		else:
-			doc.save()
+			doc.save(ignore_permissions=True)
 
 	# Delete AFTER saves — children must be reparented before parents are deleted
 	_delete_wiki_documents(delete_doc_keys, key_to_name, root_doc_key)
